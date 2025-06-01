@@ -8,11 +8,8 @@
 ## 使い方
 
 ```bash
-npm ci
-
-# 下記2コマンドを別タブで同時に実行する
+npm i
 npm run start
-npm run server
 ```
 
 ## 公開URL
