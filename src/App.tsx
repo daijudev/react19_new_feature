@@ -1,4 +1,4 @@
-import { Suspense, useState } from "react";
+import { Suspense, useState, use } from "react";
 import "./App.css";
 import NewPostForm from "./components/NewPostForm";
 
@@ -7,6 +7,7 @@ interface Post {
   title: string;
   content: string;
   author: string;
+  createdAt?: string;
 }
 
 interface Comment {
@@ -22,52 +23,65 @@ interface PostFormData {
   author: string;
 }
 
-// Promiseリソースを作成する関数
-const createResource = <T,>(promise: Promise<T>) => {
-  let status: "pending" | "success" | "error" = "pending";
-  let result: T;
-  let error: Error;
-
-  const suspender = promise.then(
-    (data) => {
-      status = "success";
-      result = data;
-    },
-    (e) => {
-      status = "error";
-      error = e;
-    }
-  );
-
-  return {
-    read() {
-      if (status === "pending") {
-        throw suspender;
-      } else if (status === "error") {
-        throw error;
-      } else if (status === "success") {
-        return result;
-      }
-    },
-  };
+// ローカルストレージのキー
+const STORAGE_KEYS = {
+  POSTS: 'blog_posts',
+  COMMENTS: 'blog_comments'
 };
 
-// データ取得用のリソース
-const postsResource = createResource<Post[]>(
-  fetch("http://localhost:3001/posts").then((res) => res.json())
-);
+// 初期データ
+const initialPosts: Post[] = [
+  {
+    id: 1,
+    title: "Reactの新しい機能について",
+    content: "React 19で導入される新機能について解説します。",
+    author: "山田太郎"
+  },
+  {
+    id: 2,
+    title: "TypeScriptの型システム",
+    content: "TypeScriptの型システムの基礎から応用まで解説します。",
+    author: "鈴木花子"
+  }
+];
 
-const commentsResource = createResource<Comment[]>(
-  fetch("http://localhost:3001/comments").then((res) => res.json())
-);
+const initialComments: Comment[] = [
+  {
+    id: 1,
+    postId: 1,
+    text: "とても参考になりました！",
+    author: "佐藤次郎"
+  },
+  {
+    id: 2,
+    postId: 1,
+    text: "詳しい解説ありがとうございます。",
+    author: "田中三郎"
+  }
+];
+
+// データ取得用のPromise
+const fetchData = <T,>(key: string, defaultValue: T): Promise<T> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const data = localStorage.getItem(key);
+      resolve(data ? JSON.parse(data) : defaultValue);
+    }, 1000); // 1秒の遅延を追加
+  });
+};
+
+// データリソース
+const postsPromise = fetchData(STORAGE_KEYS.POSTS, initialPosts);
+const commentsPromise = fetchData(STORAGE_KEYS.COMMENTS, initialComments);
 
 // 投稿リストコンポーネント
 const PostList = ({ newPosts }: { newPosts: Post[] }) => {
-  const posts = postsResource.read();
-  const comments = commentsResource.read();
+  // useフックを使用してデータを取得
+  const posts = use(postsPromise);
+  const comments = use(commentsPromise);
 
-  // 新しい投稿と既存の投稿を結合し、新しい投稿を先頭に配置
-  const allPosts = [...newPosts, ...(posts || [])];
+  // 新しい投稿と既存の投稿を結合
+  const allPosts = [...newPosts, ...posts];
 
   return (
     <div className="posts">
@@ -79,7 +93,7 @@ const PostList = ({ newPosts }: { newPosts: Post[] }) => {
           <div className="comments">
             <h3>コメント</h3>
             {comments
-              ?.filter((comment: Comment) => comment.postId === post.id)
+              .filter((comment: Comment) => comment.postId === post.id)
               .map((comment: Comment) => (
                 <div key={comment.id} className="comment">
                   <p>{comment.text}</p>
@@ -96,15 +110,25 @@ const PostList = ({ newPosts }: { newPosts: Post[] }) => {
 // ローディングフォールバックコンポーネント
 const LoadingFallback = () => (
   <div className="loading">
-    <p>読み込み中...</p>
+    <h1>ローディング中...</h1>
   </div>
 );
 
 function App() {
   const [newPosts, setNewPosts] = useState<Post[]>([]);
 
-  const handleNewPost = (post: PostFormData) => {
-    setNewPosts((prev) => [post as Post, ...prev]);
+  const handleNewPost = (postData: PostFormData) => {
+    const newPost: Post = {
+      id: Date.now(),
+      ...postData,
+      createdAt: new Date().toISOString()
+    };
+    
+    setNewPosts(prev => [newPost, ...prev]);
+    
+    // ローカルストレージに保存
+    const currentPosts = JSON.parse(localStorage.getItem(STORAGE_KEYS.POSTS) || JSON.stringify(initialPosts));
+    localStorage.setItem(STORAGE_KEYS.POSTS, JSON.stringify([newPost, ...currentPosts]));
   };
 
   return (

@@ -38,21 +38,16 @@ function SubmitButton() {
 // 新しい投稿を作成するAction
 async function createPost(post: PostFormData): Promise<PostFormData> {
   // 投稿処理を擬似的に遅延させる
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+  await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  const response = await fetch("http://localhost:3001/posts", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(post),
-  });
+  // ローカルで投稿を作成
+  const newPost: PostFormData = {
+    ...post,
+    id: Date.now(),
+    createdAt: new Date().toISOString(),
+  };
 
-  if (!response.ok) {
-    throw new Error("投稿の作成に失敗しました");
-  }
-
-  return response.json();
+  return newPost;
 }
 
 export default function NewPostForm({ onNewPost }: NewPostFormProps) {
