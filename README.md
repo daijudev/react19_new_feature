@@ -14,3 +14,6 @@ npm ci
 npm run start
 npm run server
 ```
+
+## 公開URL
+https://react19-new-feature-daijudevs-projects.vercel.app/
